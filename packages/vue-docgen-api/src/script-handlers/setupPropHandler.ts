@@ -66,7 +66,7 @@ export default async function setupPropHandler(
 	}
 }
 
-function resolveTSType(prop: NodePath) {
+function resolveTSType(prop: NodePath): any {
 	const typeAnnotation = prop.node.typeAnnotation?.typeAnnotation
 	const primitiveType: string | undefined = (
 		{

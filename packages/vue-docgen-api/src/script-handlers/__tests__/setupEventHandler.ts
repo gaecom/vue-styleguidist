@@ -6,6 +6,8 @@ import Documentation, { EventDescriptor } from '../../Documentation'
 import resolveExportedComponent from '../../utils/resolveExportedComponent'
 import setupEventHandler from '../setupEventHandler'
 
+jest.mock('../../Documentation')
+
 function parse(src: string, plugins?: ParserPlugin[]): NodePath | undefined {
 	const ast = babylon({ plugins }).parse(src)
 	return resolveExportedComponent(ast)[0].get('default')
@@ -49,7 +51,12 @@ describe('setupEventHandler', () => {
         const emit = defineEmits(['test'])
         `
 		const prop = await parserTest(src)
-		expect(prop).toMatchInlineSnapshot()
+		expect(prop).toMatchInlineSnapshot(`
+		Object {
+		  "description": "",
+		  "name": "",
+		}
+	`)
 	})
 
 	it('should resolve event comments in defineEmits', async () => {
@@ -62,6 +69,11 @@ describe('setupEventHandler', () => {
 		])
         `
 		const prop = await parserTest(src)
-		expect(prop).toMatchInlineSnapshot()
+		expect(prop).toMatchInlineSnapshot(`
+		Object {
+		  "description": "",
+		  "name": "",
+		}
+	`)
 	})
 })

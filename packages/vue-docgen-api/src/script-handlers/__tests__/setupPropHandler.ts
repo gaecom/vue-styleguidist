@@ -128,17 +128,16 @@ describe('setupPropHandler', () => {
 				expect(documentation.getPropDescriptor).toHaveBeenCalledWith('testProps')
 				expect(documentation.getPropDescriptor).toHaveBeenCalledWith('anotherTestProps')
 				expect(prop).toMatchInlineSnapshot(`
-			Object {
-			  "description": "",
-			  "name": "mockProp",
-			  "required": true,
-			  "tags": Object {},
-			  "type": Object {
-			    "func": false,
-			    "name": "boolean",
-			  },
-			}
-		`)
+Object {
+  "description": "",
+  "name": "mockProp",
+  "required": true,
+  "tags": Object {},
+  "type": Object {
+    "name": "boolean",
+  },
+}
+`)
 			})
 
 			it('should resolve comments in defineProps', async () => {
@@ -200,27 +199,25 @@ describe('setupPropHandler', () => {
 				const prop = await parserTest(src)
 				expect(documentation.getPropDescriptor).toHaveBeenCalledWith('complex')
 				expect(prop.type).toMatchInlineSnapshot(`
-			Object {
-			  "name": "signature",
-			  "properties": Array [
-			    Object {
-			      "key": "foo",
-			      "value": Object {
-			        "func": false,
-			        "name": "number",
-			      },
-			    },
-			    Object {
-			      "key": "bar",
-			      "value": Object {
-			        "func": false,
-			        "name": "boolean",
-			      },
-			    },
-			  ],
-			  "type": "object",
-			}
-		`)
+Object {
+  "name": "signature",
+  "properties": Array [
+    Object {
+      "key": "foo",
+      "value": Object {
+        "name": "number",
+      },
+    },
+    Object {
+      "key": "bar",
+      "value": Object {
+        "name": "boolean",
+      },
+    },
+  ],
+  "type": "object",
+}
+`)
 			})
 		})
 

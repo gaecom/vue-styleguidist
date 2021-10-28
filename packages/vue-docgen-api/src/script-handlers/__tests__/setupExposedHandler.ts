@@ -6,6 +6,8 @@ import Documentation, { ExposedDescriptor } from '../../Documentation'
 import resolveExportedComponent from '../../utils/resolveExportedComponent'
 import setupExposedHandler from '../setupExposedHandler'
 
+jest.mock('../../Documentation')
+
 function parse(src: string, plugins?: ParserPlugin[]): NodePath | undefined {
 	const ast = babylon({ plugins }).parse(src)
 	return resolveExportedComponent(ast)[0].get('default')
@@ -46,9 +48,14 @@ describe('setupExposedHandler', () => {
 
 	it('should resolve Exposeds in defineProps', async () => {
 		const src = `
-        defineExposed(['testProps')
+        defineExposed(['testProps'])
         `
 		const prop = await parserTest(src)
-		expect(prop).toMatchInlineSnapshot()
+		expect(prop).toMatchInlineSnapshot(`
+		Object {
+		  "description": "",
+		  "name": "",
+		}
+	`)
 	})
 })
