@@ -51,7 +51,7 @@ export default async function setupPropHandler(
 
 								propDescriptor.required = !prop.node.optional
 
-								propDescriptor.type = resolveTSType(prop)
+								propDescriptor.type = resolveTSType(prop.get('typeAnnotation', 'typeAnnotation'))
 							}
 						})
 					}
@@ -66,39 +66,42 @@ export default async function setupPropHandler(
 	}
 }
 
-function resolveTSType(prop: NodePath): any {
-	const typeAnnotation = prop.node.typeAnnotation?.typeAnnotation
+function resolveTSType(typeAnnotation: NodePath): any {
 	const primitiveType: string | undefined = (
 		{
 			TSBooleanKeyword: 'boolean',
 			TSNumberKeyword: 'number',
 			TSStringKeyword: 'string'
-		} as any
-	)[typeAnnotation.type as string]
+		} as const
+	)[typeAnnotation.node.type as string]
 
 	if (primitiveType) {
 		return {
 			name: primitiveType
 		}
-	} else if (bt.isTSArrayType(typeAnnotation)) {
-		if (typeAnnotation.elementType) {
+	} else if (bt.isTSArrayType(typeAnnotation.node)) {
+		const elementType = typeAnnotation.get('elementType')
+		if (elementType.node) {
 			return {
 				name: 'array',
-				elements: [resolveTSType(prop.get('typeAnnotation', 'typeAnnotation', 'elementType'))]
+				elements: [resolveTSType(elementType)]
 			}
 		}
 		return {
 			name: 'array'
 		}
-	} else if (bt.isTSTypeLiteral(typeAnnotation)) {
+	} else if (bt.isTSTypeLiteral(typeAnnotation.node)) {
 		return {
 			name: 'signature',
 			type: 'object',
-			properties: prop
-				.get('typeAnnotation', 'typeAnnotation', 'members')
+			properties: typeAnnotation
+				.get('members')
 				.map((member: NodePath) => {
 					if (bt.isTSPropertySignature(member.node) && bt.isIdentifier(member.node.key)) {
-						return { key: member.node.key.name, value: resolveTSType(member) }
+						return {
+							key: member.node.key.name,
+							value: resolveTSType(member.get('typeAnnotation', 'typeAnnotation'))
+						}
 					}
 				})
 				.filter((p: any) => p)
