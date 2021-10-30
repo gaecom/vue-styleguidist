@@ -13,7 +13,9 @@ import {
 	UnnamedParam,
 	Tag,
 	ParamTag,
-	ParamType
+	ParamType,
+	TypeOfProp,
+	SubProp
 } from 'vue-inbrowser-compiler-utils'
 
 export {
@@ -30,7 +32,9 @@ export {
 	UnnamedParam,
 	Tag,
 	ParamTag,
-	ParamType
+	ParamType,
+	TypeOfProp,
+	SubProp
 }
 
 export default class Documentation {

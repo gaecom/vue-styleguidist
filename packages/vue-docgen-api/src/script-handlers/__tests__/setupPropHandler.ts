@@ -232,7 +232,6 @@ describe('setupPropHandler', () => {
 			      },
 			    },
 			  ],
-			  "type": "object",
 			}
 		`)
 			})
@@ -242,6 +241,9 @@ describe('setupPropHandler', () => {
 			it('resolves local interfaces', async () => {
 				const src = `
 					interface LocalType {
+            /**
+             * describe the local prop
+             */
 						inInterface: boolean
 					}
 
@@ -250,6 +252,7 @@ describe('setupPropHandler', () => {
 				const prop = await parserTest(src)
 				expect(documentation.getPropDescriptor).toHaveBeenCalledWith('inInterface')
 				expect(prop.required).toBe(true)
+				expect(prop.description).toBe('describe the local prop')
 			})
 		})
 	})

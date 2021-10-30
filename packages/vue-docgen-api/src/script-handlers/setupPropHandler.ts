@@ -1,19 +1,19 @@
 import * as bt from '@babel/types'
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'recast'
-import Documentation, { BlockTag, DocBlockTags } from '../Documentation'
+// eslint-disable-next-line import/no-named-default
+import type {
+	default as Documentation,
+	BlockTag,
+	DocBlockTags,
+	SubProp,
+	TypeOfProp
+} from '../Documentation'
 import { ParseOptions } from '../parse'
 import getDocblock from '../utils/getDocblock'
 import getDoclets from '../utils/getDoclets'
 import transformTagsIntoObject from '../utils/transformTagsIntoObject'
 import { describePropsFromValue } from './propHandler'
-
-interface SubProp {
-	key: string
-	value: any
-	description?: string
-	tags?: Record<string, BlockTag[]>
-}
 
 /**
  * Extract information from an setup-style VueJs 3 component
@@ -37,17 +37,19 @@ export default async function setupPropHandler(
 				if ((nodePath.node as any).typeParameters) {
 					const typeParamsPath = nodePath.get('typeParameters', 'params', 0)
 					if (bt.isTSTypeLiteral(typeParamsPath.node)) {
-						typeParamsPath.get('members').each((prop: NodePath) => {
-							if (bt.isTSPropertySignature(prop.node) && bt.isIdentifier(prop.node.key)) {
-								const propDescriptor = documentation.getPropDescriptor(prop.node.key.name)
-
-								decorateItem(prop, propDescriptor)
-
-								propDescriptor.required = !prop.node.optional
-
-								propDescriptor.type = resolveTSType(prop.get('typeAnnotation', 'typeAnnotation'))
-							}
-						})
+						getPropsFromLiteralType(documentation, typeParamsPath.get('members'))
+					} else if (
+						bt.isTSTypeReference(typeParamsPath.node) &&
+						bt.isIdentifier(typeParamsPath.node.typeName)
+					) {
+						// its a reference to an interface or type
+						const typeName = typeParamsPath.node.typeName.name // extract the identifier
+						// find it's definition in the file
+						const definitionPath = getTypeDefinitionFromIdentifier(astPath, typeName)
+						// use the same process to exact info
+						if (definitionPath) {
+							getPropsFromLiteralType(documentation, definitionPath)
+						}
 					}
 				}
 			}
@@ -55,19 +57,47 @@ export default async function setupPropHandler(
 		}
 	})
 
+	// this is JavaScript typing
 	if (propsDef) {
 		await describePropsFromValue(documentation, propsDef, astPath, opt)
 	}
 }
 
-function resolveTSType(typeAnnotation: NodePath): any {
-	const primitiveType: string | undefined = (
-		{
-			TSBooleanKeyword: 'boolean',
-			TSNumberKeyword: 'number',
-			TSStringKeyword: 'string'
-		} as const
-	)[typeAnnotation.node.type as string]
+function getTypeDefinitionFromIdentifier(astPath: bt.File, typeName: string): NodePath | undefined {
+	let typeBody: NodePath | undefined = undefined
+	visit(astPath.program, {
+		visitTSInterfaceDeclaration(nodePath) {
+			if (bt.isIdentifier(nodePath.node.id) && nodePath.node.id.name === typeName) {
+				typeBody = nodePath.get('body', 'body')
+			}
+			return false
+		}
+	})
+	return typeBody
+}
+
+function getPropsFromLiteralType(documentation: Documentation, typeParamsPathMembers: any): void {
+	typeParamsPathMembers.each((prop: NodePath) => {
+		if (bt.isTSPropertySignature(prop.node) && bt.isIdentifier(prop.node.key)) {
+			const propDescriptor = documentation.getPropDescriptor(prop.node.key.name)
+
+			decorateItem(prop, propDescriptor)
+
+			propDescriptor.required = !prop.node.optional
+
+			propDescriptor.type = resolveTSType(prop.get('typeAnnotation', 'typeAnnotation'))
+		}
+	})
+}
+
+const PRIMITIVE_MAP = {
+	TSBooleanKeyword: 'boolean',
+	TSNumberKeyword: 'number',
+	TSStringKeyword: 'string'
+} as const
+
+function resolveTSType(typeAnnotation: NodePath): TypeOfProp | undefined {
+	const primitiveType = PRIMITIVE_MAP[typeAnnotation.node.type as keyof typeof PRIMITIVE_MAP]
 
 	if (primitiveType) {
 		return {
@@ -76,9 +106,10 @@ function resolveTSType(typeAnnotation: NodePath): any {
 	} else if (bt.isTSArrayType(typeAnnotation.node)) {
 		const elementType = typeAnnotation.get('elementType')
 		if (elementType.node) {
+			const tsType = resolveTSType(elementType)
 			return {
 				name: 'array',
-				elements: [resolveTSType(elementType)]
+				elements: tsType ? [tsType] : undefined
 			}
 		}
 		return {
@@ -87,7 +118,6 @@ function resolveTSType(typeAnnotation: NodePath): any {
 	} else if (bt.isTSTypeLiteral(typeAnnotation.node)) {
 		return {
 			name: 'signature',
-			type: 'object',
 			properties: typeAnnotation
 				.get('members')
 				.map((member: NodePath) => {

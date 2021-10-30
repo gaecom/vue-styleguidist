@@ -58,6 +58,28 @@ export interface EventDescriptor extends DocBlockTags, Descriptor {
 	properties?: EventProperty[]
 }
 
+export interface TypeOfPropPrimitive {
+	name: 'boolean' | 'number' | 'string'
+}
+export interface TypeOfPropArray {
+	name: 'array'
+	elements?: TypeOfProp[]
+}
+
+export interface SubProp {
+	key: string
+	value: any
+	description?: string
+	tags?: Record<string, BlockTag[]>
+}
+
+export interface TypeOfPropSignature {
+	name: 'signature'
+	properties?: SubProp[]
+}
+
+export type TypeOfProp = TypeOfPropPrimitive | TypeOfPropArray | TypeOfPropSignature
+
 export interface PropDescriptor extends Descriptor {
 	type?: { name: string; func?: boolean }
 	description?: string
