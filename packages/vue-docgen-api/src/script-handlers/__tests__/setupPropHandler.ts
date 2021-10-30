@@ -200,7 +200,13 @@ describe('setupPropHandler', () => {
 				const src = `
 					defineProps<{
 						complex: {
+              /**
+               * foo is one part of the prop
+               */
 							foo: number,
+              /**
+               * bar is the other part
+               */
 							bar: boolean
 						}
 					}>()
@@ -212,12 +218,14 @@ describe('setupPropHandler', () => {
 			  "name": "signature",
 			  "properties": Array [
 			    Object {
+			      "description": "foo is one part of the prop",
 			      "key": "foo",
 			      "value": Object {
 			        "name": "number",
 			      },
 			    },
 			    Object {
+			      "description": "bar is the other part",
 			      "key": "bar",
 			      "value": Object {
 			        "name": "boolean",

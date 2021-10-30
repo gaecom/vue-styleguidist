@@ -8,6 +8,13 @@ import getDoclets from '../utils/getDoclets'
 import transformTagsIntoObject from '../utils/transformTagsIntoObject'
 import { describePropsFromValue } from './propHandler'
 
+interface SubProp {
+	key: string
+	value: any
+	description?: string
+	tags?: Record<string, BlockTag[]>
+}
+
 /**
  * Extract information from an setup-style VueJs 3 component
  * about what props can be used with this component
@@ -34,20 +41,7 @@ export default async function setupPropHandler(
 							if (bt.isTSPropertySignature(prop.node) && bt.isIdentifier(prop.node.key)) {
 								const propDescriptor = documentation.getPropDescriptor(prop.node.key.name)
 
-								// description
-								const docBlock = getDocblock(prop)
-								const jsDoc: DocBlockTags = docBlock
-									? getDoclets(docBlock)
-									: { description: '', tags: [] }
-								const jsDocTags: BlockTag[] = jsDoc.tags ? jsDoc.tags : []
-
-								if (jsDoc.description) {
-									propDescriptor.description = jsDoc.description
-								}
-
-								if (jsDocTags.length) {
-									propDescriptor.tags = transformTagsIntoObject(jsDocTags)
-								}
+								decorateItem(prop, propDescriptor)
 
 								propDescriptor.required = !prop.node.optional
 
@@ -98,13 +92,34 @@ function resolveTSType(typeAnnotation: NodePath): any {
 				.get('members')
 				.map((member: NodePath) => {
 					if (bt.isTSPropertySignature(member.node) && bt.isIdentifier(member.node.key)) {
-						return {
+						const subProp: SubProp = {
 							key: member.node.key.name,
 							value: resolveTSType(member.get('typeAnnotation', 'typeAnnotation'))
 						}
+						decorateItem(member, subProp)
+						return subProp
 					}
 				})
 				.filter((p: any) => p)
 		}
+	} else if (bt.isTSTypeReference(typeAnnotation.node)) {
+		// test
+	}
+}
+
+function decorateItem(
+	item: NodePath,
+	propDescriptor: { description?: string; tags?: Record<string, BlockTag[]> }
+) {
+	const docBlock = getDocblock(item)
+	const jsDoc: DocBlockTags = docBlock ? getDoclets(docBlock) : { description: '', tags: [] }
+	const jsDocTags: BlockTag[] = jsDoc.tags ? jsDoc.tags : []
+
+	if (jsDoc.description) {
+		propDescriptor.description = jsDoc.description
+	}
+
+	if (jsDocTags.length) {
+		propDescriptor.tags = transformTagsIntoObject(jsDocTags)
 	}
 }
