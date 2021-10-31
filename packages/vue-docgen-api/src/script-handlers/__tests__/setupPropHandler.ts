@@ -219,15 +219,15 @@ describe('setupPropHandler', () => {
 			  "properties": Array [
 			    Object {
 			      "description": "foo is one part of the prop",
-			      "key": "foo",
-			      "value": Object {
+			      "name": "foo",
+			      "type": Object {
 			        "name": "number",
 			      },
 			    },
 			    Object {
 			      "description": "bar is the other part",
-			      "key": "bar",
-			      "value": Object {
+			      "name": "bar",
+			      "type": Object {
 			        "name": "boolean",
 			      },
 			    },

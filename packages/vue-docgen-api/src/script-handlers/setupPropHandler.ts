@@ -1,18 +1,9 @@
 import * as bt from '@babel/types'
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'recast'
-// eslint-disable-next-line import/no-named-default
-import type {
-	default as Documentation,
-	BlockTag,
-	DocBlockTags,
-	SubProp,
-	TypeOfProp
-} from '../Documentation'
+import getTypeFromAnnotation, { decorateItem } from '../utils/getTypeFromAnnotation'
+import type { Documentation } from '../Documentation'
 import { ParseOptions } from '../parse'
-import getDocblock from '../utils/getDocblock'
-import getDoclets from '../utils/getDoclets'
-import transformTagsIntoObject from '../utils/transformTagsIntoObject'
 import { describePropsFromValue } from './propHandler'
 
 /**
@@ -85,71 +76,7 @@ function getPropsFromLiteralType(documentation: Documentation, typeParamsPathMem
 
 			propDescriptor.required = !prop.node.optional
 
-			propDescriptor.type = resolveTSType(prop.get('typeAnnotation', 'typeAnnotation'))
+			propDescriptor.type = getTypeFromAnnotation(prop.get('typeAnnotation', 'typeAnnotation'))
 		}
 	})
-}
-
-const PRIMITIVE_MAP = {
-	TSBooleanKeyword: 'boolean',
-	TSNumberKeyword: 'number',
-	TSStringKeyword: 'string'
-} as const
-
-function resolveTSType(typeAnnotation: NodePath): TypeOfProp | undefined {
-	const primitiveType = PRIMITIVE_MAP[typeAnnotation.node.type as keyof typeof PRIMITIVE_MAP]
-
-	if (primitiveType) {
-		return {
-			name: primitiveType
-		}
-	} else if (bt.isTSArrayType(typeAnnotation.node)) {
-		const elementType = typeAnnotation.get('elementType')
-		if (elementType.node) {
-			const tsType = resolveTSType(elementType)
-			return {
-				name: 'array',
-				elements: tsType ? [tsType] : undefined
-			}
-		}
-		return {
-			name: 'array'
-		}
-	} else if (bt.isTSTypeLiteral(typeAnnotation.node)) {
-		return {
-			name: 'signature',
-			properties: typeAnnotation
-				.get('members')
-				.map((member: NodePath) => {
-					if (bt.isTSPropertySignature(member.node) && bt.isIdentifier(member.node.key)) {
-						const subProp: SubProp = {
-							key: member.node.key.name,
-							value: resolveTSType(member.get('typeAnnotation', 'typeAnnotation'))
-						}
-						decorateItem(member, subProp)
-						return subProp
-					}
-				})
-				.filter((p: any) => p)
-		}
-	} else if (bt.isTSTypeReference(typeAnnotation.node)) {
-		// test
-	}
-}
-
-function decorateItem(
-	item: NodePath,
-	propDescriptor: { description?: string; tags?: Record<string, BlockTag[]> }
-) {
-	const docBlock = getDocblock(item)
-	const jsDoc: DocBlockTags = docBlock ? getDoclets(docBlock) : { description: '', tags: [] }
-	const jsDocTags: BlockTag[] = jsDoc.tags ? jsDoc.tags : []
-
-	if (jsDoc.description) {
-		propDescriptor.description = jsDoc.description
-	}
-
-	if (jsDocTags.length) {
-		propDescriptor.tags = transformTagsIntoObject(jsDocTags)
-	}
 }
