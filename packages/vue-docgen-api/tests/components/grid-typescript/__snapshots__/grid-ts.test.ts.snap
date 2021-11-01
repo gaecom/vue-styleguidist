@@ -176,14 +176,6 @@ Object {
       },
     },
     Object {
-      "defaultValue": Object {
-        "func": true,
-        "value": "function () {}",
-      },
-      "description": "prop function",
-      "name": "propFunc",
-    },
-    Object {
       "description": "get columns list",
       "name": "columns",
       "type": Object {

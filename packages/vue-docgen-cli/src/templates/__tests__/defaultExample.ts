@@ -44,13 +44,6 @@ describe('defaultExample', () => {
 					},
 					{ name: 'date', required: true, type: { name: 'date' }, tags: {}, description: '' },
 					{
-						name: 'function',
-						required: true,
-						type: { name: 'func' },
-						tags: {},
-						description: ''
-					},
-					{
 						name: 'symbol',
 						required: true,
 						type: { name: 'symbol' },
@@ -62,7 +55,7 @@ describe('defaultExample', () => {
 		).toMatchInlineSnapshot(`
 		"
 		\`\`\`vue live
-		<my-component string=\\"Default Example Usage\\"  :number=\\"42\\"  :boolean=\\"true\\"  :array=\\"[1, 2, 3]\\"  :object=\\"{}\\"  :date=\\"new Date('2012-12-12')\\"  :function=\\"() => void\\"  :symbol=\\"Default Example Usage\\" />
+		<my-component string=\\"Default Example Usage\\"  :number=\\"42\\"  :boolean=\\"true\\"  :array=\\"[1, 2, 3]\\"  :object=\\"{}\\"  :date=\\"new Date('2012-12-12')\\" :symbol=\\"Default Example Usage\\" />
 		\`\`\`
 			"
 	`)
