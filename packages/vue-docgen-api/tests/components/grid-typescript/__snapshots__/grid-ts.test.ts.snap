@@ -97,7 +97,8 @@ Object {
         Object {
           "name": "param",
           "type": Object {
-            "name": "ForParam",
+            "code": "ForParam",
+            "name": "code",
           },
         },
       ],
@@ -181,9 +182,6 @@ Object {
       },
       "description": "prop function",
       "name": "propFunc",
-      "type": Object {
-        "name": "func",
-      },
     },
     Object {
       "description": "get columns list",

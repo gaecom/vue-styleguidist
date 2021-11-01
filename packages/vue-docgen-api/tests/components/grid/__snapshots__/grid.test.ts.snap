@@ -156,9 +156,6 @@ Object {
       },
       "description": "prop function",
       "name": "propFunc",
-      "type": Object {
-        "name": "func",
-      },
     },
     Object {
       "description": "get columns list",

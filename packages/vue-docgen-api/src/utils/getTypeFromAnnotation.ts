@@ -14,6 +14,21 @@ export default function getTypeFromAnnotation(typeAnnotation: NodePath): TypeOfP
 		return {
 			name: primitiveType
 		}
+	} else if (
+		bt.isTSTypeReference(typeAnnotation.node) &&
+		bt.isIdentifier(typeAnnotation.node.typeName) &&
+		(typeAnnotation.node.typeName.name === 'String' ||
+			typeAnnotation.node.typeName.name === 'Number' ||
+			typeAnnotation.node.typeName.name === 'Boolean')
+	) {
+		return {
+			name: typeAnnotation.node.typeName.name.toLowerCase() as 'string' | 'number' | 'boolean'
+		}
+	} else if (bt.isTSLiteralType(typeAnnotation.node)) {
+		return {
+			name: 'literal',
+			value: typeAnnotation.node.literal.value
+		}
 	} else if (bt.isTSArrayType(typeAnnotation.node)) {
 		const elementType = typeAnnotation.get('elementType')
 		if (elementType.node) {

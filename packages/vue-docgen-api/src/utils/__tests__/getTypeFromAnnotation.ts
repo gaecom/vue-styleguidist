@@ -82,12 +82,12 @@ describe('getTypeFromAnnotation', () => {
 		Object {
 		  "elements": Array [
 		    Object {
-		      "code": "\\"string literal\\"",
-		      "name": "code",
+		      "name": "literal",
+		      "value": "string literal",
 		    },
 		    Object {
-		      "code": "3",
-		      "name": "code",
+		      "name": "literal",
+		      "value": 3,
 		    },
 		    Object {
 		      "code": "Book",
@@ -142,12 +142,12 @@ describe('getTypeFromAnnotation', () => {
 		Object {
 		  "elements": Array [
 		    Object {
-		      "code": "\\"string literal\\"",
-		      "name": "code",
+		      "name": "literal",
+		      "value": "string literal",
 		    },
 		    Object {
-		      "code": "3",
-		      "name": "code",
+		      "name": "literal",
+		      "value": 3,
 		    },
 		    Object {
 		      "code": "Book",
@@ -189,6 +189,14 @@ describe('getTypeFromAnnotation', () => {
 		    },
 		  ],
 		  "name": "intersection",
+		}
+	`)
+	})
+
+	it('should extract capitalized types', () => {
+		expect(getTypeFromAnnotation(getAnnotation('String'))).toMatchInlineSnapshot(`
+		Object {
+		  "name": "string",
 		}
 	`)
 	})
