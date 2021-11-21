@@ -56,110 +56,118 @@ export default async function propHandler(
 
 		const propsValuePath = propsPath[0].get('value')
 
-		if (bt.isObjectExpression(propsValuePath.node)) {
-			const objProp = propsValuePath.get('properties')
+		await describePropsFromValue(documentation, propsValuePath, ast, opt, modelPropertyName)
+	}
+}
 
-			// filter non object properties
-			const objPropFiltered = objProp.filter((p: NodePath) =>
-				bt.isProperty(p.node)
-			) as NodePath<bt.Property>[]
-			await Promise.all(
-				objPropFiltered.map(async prop => {
-					const propNode = prop.node
+export async function describePropsFromValue(
+	documentation: Documentation,
+	propsValuePath: NodePath<bt.ObjectExpression, any> | NodePath<bt.ArrayExpression, any>,
+	ast: bt.File,
+	opt: ParseOptions,
+	modelPropertyName: string | null = null
+) {
+	if (bt.isObjectExpression(propsValuePath.node)) {
+		const objProp = propsValuePath.get('properties')
 
-					// description
-					const docBlock = getDocblock(prop)
-					const jsDoc: DocBlockTags = docBlock
-						? getDoclets(docBlock)
-						: { description: '', tags: [] }
-					const jsDocTags: BlockTag[] = jsDoc.tags ? jsDoc.tags : []
+		// filter non object properties
+		const objPropFiltered = objProp.filter((p: NodePath) =>
+			bt.isProperty(p.node)
+		) as NodePath<bt.Property>[]
+		await Promise.all(
+			objPropFiltered.map(async prop => {
+				const propNode = prop.node
 
-					// if it's the v-model describe it only as such
-					const propertyName = bt.isIdentifier(propNode.key)
-						? propNode.key.name
-						: bt.isStringLiteral(propNode.key)
-						? propNode.key.value
-						: null
+				// description
+				const docBlock = getDocblock(prop)
+				const jsDoc: DocBlockTags = docBlock ? getDoclets(docBlock) : { description: '', tags: [] }
+				const jsDocTags: BlockTag[] = jsDoc.tags ? jsDoc.tags : []
 
-					if (!propertyName) {
-						return
+				// if it's the v-model describe it only as such
+				const propertyName = bt.isIdentifier(propNode.key)
+					? propNode.key.name
+					: bt.isStringLiteral(propNode.key)
+					? propNode.key.value
+					: null
+
+				if (!propertyName) {
+					return
+				}
+				const isPropertyModel =
+					jsDocTags.some(t => t.title === 'model') || propertyName === modelPropertyName
+				const propName = isPropertyModel ? 'v-model' : propertyName
+
+				const propDescriptor = documentation.getPropDescriptor(propName)
+
+				const propValuePath = prop.get('value')
+
+				if (jsDoc.description) {
+					propDescriptor.description = jsDoc.description
+				}
+
+				if (jsDocTags.length) {
+					propDescriptor.tags = transformTagsIntoObject(jsDocTags)
+				}
+
+				extractValuesFromTags(propDescriptor)
+
+				if (bt.isArrayExpression(propValuePath.node) || bt.isIdentifier(propValuePath.node)) {
+					// if it's an immediately typed property, resolve its type immediately
+					propDescriptor.type = getTypeFromTypePath(propValuePath)
+				} else if (bt.isObjectExpression(propValuePath.node)) {
+					// standard default + type + required
+					const propPropertiesPath = propValuePath
+						.get('properties')
+						.filter(
+							(p: NodePath) => bt.isObjectProperty(p.node) || bt.isObjectMethod(p.node)
+						) as NodePath<bt.ObjectProperty | bt.ObjectMethod>[]
+
+					// type
+					const litteralType = describeType(propPropertiesPath, propDescriptor)
+
+					// required
+					describeRequired(propPropertiesPath, propDescriptor)
+
+					// default
+					describeDefault(propPropertiesPath, propDescriptor, litteralType || '')
+
+					// validator => values
+					await describeValues(propPropertiesPath, propDescriptor, ast, opt)
+				} else if (bt.isTSAsExpression(propValuePath.node)) {
+					// standard default + type + required with TS as annotation
+					const propPropertiesPath = propValuePath
+						.get('expression', 'properties')
+						.filter((p: NodePath) => bt.isObjectProperty(p.node)) as NodePath<bt.ObjectProperty>[]
+
+					// type and values
+					describeTypeAndValuesFromPath(propValuePath, propDescriptor)
+
+					// required
+					describeRequired(propPropertiesPath, propDescriptor)
+
+					// default
+					describeDefault(
+						propPropertiesPath,
+						propDescriptor,
+						(propDescriptor.type && propDescriptor.type.name) || ''
+					)
+				} else {
+					// in any other case, just display the code for the typing
+					propDescriptor.type = {
+						name: print(prop.get('value')).code,
+						func: true
 					}
-					const isPropertyModel =
-						jsDocTags.some(t => t.title === 'model') || propertyName === modelPropertyName
-					const propName = isPropertyModel ? 'v-model' : propertyName
-
-					const propDescriptor = documentation.getPropDescriptor(propName)
-
-					const propValuePath = prop.get('value')
-
-					if (jsDoc.description) {
-						propDescriptor.description = jsDoc.description
-					}
-
-					if (jsDocTags.length) {
-						propDescriptor.tags = transformTagsIntoObject(jsDocTags)
-					}
-
-					extractValuesFromTags(propDescriptor)
-
-					if (bt.isArrayExpression(propValuePath.node) || bt.isIdentifier(propValuePath.node)) {
-						// if it's an immediately typed property, resolve its type immediately
-						propDescriptor.type = getTypeFromTypePath(propValuePath)
-					} else if (bt.isObjectExpression(propValuePath.node)) {
-						// standard default + type + required
-						const propPropertiesPath = propValuePath
-							.get('properties')
-							.filter(
-								(p: NodePath) => bt.isObjectProperty(p.node) || bt.isObjectMethod(p.node)
-							) as NodePath<bt.ObjectProperty | bt.ObjectMethod>[]
-
-						// type
-						const litteralType = describeType(propPropertiesPath, propDescriptor)
-
-						// required
-						describeRequired(propPropertiesPath, propDescriptor)
-
-						// default
-						describeDefault(propPropertiesPath, propDescriptor, litteralType || '')
-
-						// validator => values
-						await describeValues(propPropertiesPath, propDescriptor, ast, opt)
-					} else if (bt.isTSAsExpression(propValuePath.node)) {
-						// standard default + type + required with TS as annotation
-						const propPropertiesPath = propValuePath
-							.get('expression', 'properties')
-							.filter((p: NodePath) => bt.isObjectProperty(p.node)) as NodePath<bt.ObjectProperty>[]
-
-						// type and values
-						describeTypeAndValuesFromPath(propValuePath, propDescriptor)
-
-						// required
-						describeRequired(propPropertiesPath, propDescriptor)
-
-						// default
-						describeDefault(
-							propPropertiesPath,
-							propDescriptor,
-							(propDescriptor.type && propDescriptor.type.name) || ''
-						)
-					} else {
-						// in any other case, just display the code for the typing
-						propDescriptor.type = {
-							name: print(prop.get('value')).code,
-							func: true
-						}
-					}
-				})
-			)
-		} else if (bt.isArrayExpression(propsValuePath.node)) {
-			propsValuePath
-				.get('elements')
-				.filter((e: NodePath) => bt.isStringLiteral(e.node))
-				.forEach((e: NodePath<bt.StringLiteral>) => {
-					const propDescriptor = documentation.getPropDescriptor(e.node.value)
-					propDescriptor.type = { name: 'undefined' }
-				})
-		}
+				}
+			})
+		)
+	} else if (bt.isArrayExpression(propsValuePath.node)) {
+		propsValuePath
+			.get('elements')
+			.filter((e: NodePath) => bt.isStringLiteral(e.node))
+			.forEach((e: NodePath<bt.StringLiteral>) => {
+				const propDescriptor = documentation.getPropDescriptor(e.node.value)
+				propDescriptor.type = { name: 'undefined' }
+			})
 	}
 }
 

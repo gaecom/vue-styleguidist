@@ -87,6 +87,11 @@ export interface SlotDescriptor extends Descriptor {
 	tags?: { [key: string]: BlockTag[] }
 }
 
+export interface ExposedDescriptor extends Descriptor {
+	name: string
+	description?: string
+}
+
 export interface ComponentDoc {
 	displayName: string
 	exportName: string
