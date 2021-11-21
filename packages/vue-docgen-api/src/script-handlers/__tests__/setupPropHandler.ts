@@ -45,6 +45,7 @@ describe('setupPropHandler', () => {
 		}
 		return mockPropDescriptor
 	}
+
 	describe('JavaScript', () => {
 		it('should resolve props in defineProps', async () => {
 			const src = `

@@ -2,78 +2,84 @@ import { ParserPlugin } from '@babel/parser'
 import * as bt from '@babel/types'
 import { NodePath } from 'ast-types/lib/node-path'
 import babylon from '../../babel-parser'
-import Documentation, { EventDescriptor } from '../../Documentation'
 import resolveExportedComponent from '../../utils/resolveExportedComponent'
+import Documentation, { EventDescriptor } from '../../Documentation'
 import setupEventHandler from '../setupEventHandler'
 
 jest.mock('../../Documentation')
 
-function parse(src: string, plugins?: ParserPlugin[]): NodePath | undefined {
-	const ast = babylon({ plugins }).parse(src)
-	return resolveExportedComponent(ast)[0].get('default')
+function parse(src: string, plugins?: ParserPlugin[]): bt.File {
+	return babylon({ plugins }).parse(src)
 }
 
 describe('setupEventHandler', () => {
 	let documentation: Documentation
 	let mockEventDescriptor: EventDescriptor
 
-	let defaultAST: bt.File
+	let stubNodePath: NodePath<any, any> | undefined
 	const options = { filePath: '', validExtends: () => true }
 	beforeAll(() => {
-		defaultAST = babylon({ plugins: ['typescript'] }).parse('const a  = 1')
+		const defaultAST = babylon({ plugins: ['typescript'] }).parse('export default {}')
+		stubNodePath = resolveExportedComponent(defaultAST)[0]?.get('default')
 	})
 
 	beforeEach(() => {
 		mockEventDescriptor = {
 			description: '',
-			name: ''
+			name: 'mockEvent'
 		}
 		const MockDocumentation = require('../../Documentation').default
 		documentation = new MockDocumentation('test/path')
-		const mockGetEventDescriptor = documentation.getEventDescriptor as jest.Mock
-		mockGetEventDescriptor.mockReturnValue(mockEventDescriptor)
+		const mockGetPropDescriptor = documentation.getEventDescriptor as jest.Mock
+		mockGetPropDescriptor.mockReturnValue(mockEventDescriptor)
 	})
 
 	async function parserTest(
 		src: string,
-		plugins?: ParserPlugin[],
-		ast = defaultAST
+		plugins: ParserPlugin[] = ['typescript']
 	): Promise<EventDescriptor> {
-		const def = parse(src, plugins)
-		if (def) {
-			await setupEventHandler(documentation, def, ast, options)
+		const ast = parse(src, plugins)
+		if (ast) {
+			await setupEventHandler(documentation, stubNodePath as NodePath<any, any>, ast, options)
 		}
 		return mockEventDescriptor
 	}
 
-	it('should resolve emit from defineEmits function', async () => {
-		const src = `
-        const emit = defineEmits(['test'])
-        `
-		const prop = await parserTest(src)
-		expect(prop).toMatchInlineSnapshot(`
-		Object {
-		  "description": "",
-		  "name": "",
-		}
-	`)
+	describe('JavaScript', () => {
+		it('should resolve emit from defineEmits function', async () => {
+			const src = `
+          const emit = defineEmits([
+            /**
+             * this is a test event
+             */ 
+            'test'
+          ])
+          `
+			const event = await parserTest(src)
+			expect(documentation.getEventDescriptor).toHaveBeenCalledWith('test')
+			expect(event).toMatchObject({
+				description: 'this is a test event',
+				name: 'mockEvent'
+			})
+		})
 	})
 
-	it('should resolve event comments in defineEmits', async () => {
-		const src = `
-        const emit = defineEmits([
-			/**
-			 * A test has been triggered
-			 */
-			'test'
-		])
-        `
-		const prop = await parserTest(src)
-		expect(prop).toMatchInlineSnapshot(`
-		Object {
-		  "description": "",
-		  "name": "",
-		}
-	`)
+	describe('TypeScript', () => {
+		it('should resolve emit from defineEmits function types', async () => {
+			const src = `
+          const emit = defineEmits{
+            /**
+             * Cancels everything
+             */
+            (event: 'cancel'): boolean
+          }>()
+          `
+			const event = await parserTest(src)
+			expect(documentation.getEventDescriptor).toHaveBeenCalledWith('cancel')
+			expect(event).toMatchObject({
+				description: 'Cancels everything',
+				name: 'mockEvent'
+			})
+		})
 	})
 })
